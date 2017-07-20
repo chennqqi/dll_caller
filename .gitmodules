@@ -1,0 +1,3 @@
+[submodule "MemoryModule"]
+	path = MemoryModule
+	url = https://github.com/chennqqi/MemoryModule.git

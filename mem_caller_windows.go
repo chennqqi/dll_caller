@@ -1,5 +1,18 @@
 package dll_caller
 
+/*
+#include "MemoryModule/MemoryModule.c"
+
+#ifndef UNICODE
+const CHAR* ToChar(const char* p)
+{
+	return (const CHAR*)p;
+}
+#endif
+
+*/
+import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -9,37 +22,32 @@ import (
 	"unsafe"
 )
 
-var (
-	kernel32, _ = syscall.LoadLibrary("kernel32.dll")
-)
-
-type Dll struct {
-	FileName   string
-	dllHandler syscall.Handle
+type MemDll struct {
+	mem        []byte
+	dllHandler C.HMEMORYMODULE
 	funcProcs  map[string]uintptr
 }
 
-type FuncCallResult struct {
-	Ret1  uintptr
-	Ret2  uintptr
-	Errno syscall.Errno
-}
+var ErrNotFound = errors.New("Not Found dll resource")
 
-func NewDll(fileName string) (dll *Dll, err error) {
-	newDll := new(Dll)
+func NewMemDll(dllMem []byte) (dll *MemDll, err error) {
+	newDll := new(MemDll)
 	if newDll.funcProcs == nil {
 		newDll.funcProcs = make(map[string]uintptr)
 	}
 
-	if err = newDll.LoadLibrary(fileName); err != nil {
+	//do deep copy to void memory changed
+	newDll.mem = make([]byte, len(dllMem))
+	copy(newDll.mem, dllMem)
+	if err = newDll.LoadLibrary(""); err != nil {
 		return
 	}
 
 	return newDll, nil
 }
 
-func (p *Dll) LoadLibrary(fileName string) error {
-	if handler, e := syscall.LoadLibrary(fileName); e != nil {
+func (p *MemDll) LoadLibrary(fileName string) error {
+	if handler, e := C.MemoryLoadLibrary(unsafe.Pointer(&p.mem[0]), C.size_t(len(p.mem))); e != nil {
 		return e
 	} else {
 		p.dllHandler = handler
@@ -47,24 +55,25 @@ func (p *Dll) LoadLibrary(fileName string) error {
 	return nil
 }
 
-func (p *Dll) FreeLibrary() error {
+func (p *MemDll) FreeLibrary() error {
 	if p.IsDllLoaded() {
 		defer func() {
-			p.dllHandler = 0
+			p.dllHandler = nil
 		}()
-		return syscall.FreeLibrary(p.dllHandler)
+		C.MemoryFreeLibrary(p.dllHandler)
+		return nil
 	}
 	return nil
 }
 
-func (p *Dll) IsDllLoaded() bool {
+func (p *MemDll) IsDllLoaded() bool {
 	if uintptr(p.dllHandler) == 0 {
 		return false
 	}
 	return true
 }
 
-func (p *Dll) InitalFunctions(funcNames ...string) error {
+func (p *MemDll) InitalFunctions(funcNames ...string) error {
 	if funcNames == nil {
 		return nil
 	}
@@ -82,16 +91,18 @@ func (p *Dll) InitalFunctions(funcNames ...string) error {
 		if funcName == "" {
 			return errors.New("function name could not be empty")
 		}
-		if proc, e := syscall.GetProcAddress(p.dllHandler, funcName); e != nil {
+		pCFuncName := C.CString(funcName)
+		defer C.free(unsafe.Pointer(pCFuncName))
+		if proc, e := C.MemoryGetProcAddress(p.dllHandler, C.ToChar(pCFuncName)); e != nil {
 			return e
 		} else {
-			p.funcProcs[funcName] = proc
+			p.funcProcs[funcName] = uintptr(unsafe.Pointer(proc))
 		}
 	}
 	return nil
 }
 
-func (p *Dll) Call(funcName string, funcParams ...interface{}) (result FuncCallResult, err error) {
+func (p *MemDll) Call(funcName string, funcParams ...interface{}) (result FuncCallResult, err error) {
 	var lenParam uintptr = uintptr(len(funcParams))
 
 	if p.funcProcs == nil {
@@ -201,6 +212,7 @@ func (p *Dll) Call(funcName string, funcParams ...interface{}) (result FuncCallR
 			a15 = vPtr
 		}
 	}
+
 	r1, r2, errno = syscall.Syscall15(funcAddress, lenParam, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
 	result.Ret1 = r1
 	result.Ret2 = r2
