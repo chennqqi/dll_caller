@@ -1,3 +1,5 @@
+[![GoDoc](https://godoc.org/github.com/chennqqi/godll?status.svg)](https://godoc.org/github.com/chennqqi/godll)
+
 dll_caller
 ==========
 
