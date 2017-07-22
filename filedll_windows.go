@@ -1,4 +1,4 @@
-package dll_caller
+package godll
 
 import (
 	"errors"
@@ -13,20 +13,14 @@ var (
 	kernel32, _ = syscall.LoadLibrary("kernel32.dll")
 )
 
-type Dll struct {
+type FileDll struct {
 	FileName   string
 	dllHandler syscall.Handle
 	funcProcs  map[string]uintptr
 }
 
-type FuncCallResult struct {
-	Ret1  uintptr
-	Ret2  uintptr
-	Errno syscall.Errno
-}
-
-func NewDll(fileName string) (dll *Dll, err error) {
-	newDll := new(Dll)
+func NewFileDll(fileName string) (dll Dll, err error) {
+	newDll := new(FileDll)
 	if newDll.funcProcs == nil {
 		newDll.funcProcs = make(map[string]uintptr)
 	}
@@ -38,7 +32,7 @@ func NewDll(fileName string) (dll *Dll, err error) {
 	return newDll, nil
 }
 
-func (p *Dll) LoadLibrary(fileName string) error {
+func (p *FileDll) LoadLibrary(fileName string) error {
 	if handler, e := syscall.LoadLibrary(fileName); e != nil {
 		return e
 	} else {
@@ -47,7 +41,7 @@ func (p *Dll) LoadLibrary(fileName string) error {
 	return nil
 }
 
-func (p *Dll) FreeLibrary() error {
+func (p *FileDll) FreeLibrary() error {
 	if p.IsDllLoaded() {
 		defer func() {
 			p.dllHandler = 0
@@ -57,14 +51,14 @@ func (p *Dll) FreeLibrary() error {
 	return nil
 }
 
-func (p *Dll) IsDllLoaded() bool {
+func (p *FileDll) IsDllLoaded() bool {
 	if uintptr(p.dllHandler) == 0 {
 		return false
 	}
 	return true
 }
 
-func (p *Dll) InitalFunctions(funcNames ...string) error {
+func (p *FileDll) InitalFunctions(funcNames ...string) error {
 	if funcNames == nil {
 		return nil
 	}
@@ -91,7 +85,7 @@ func (p *Dll) InitalFunctions(funcNames ...string) error {
 	return nil
 }
 
-func (p *Dll) Call(funcName string, funcParams ...interface{}) (result FuncCallResult, err error) {
+func (p *FileDll) Call(funcName string, funcParams ...interface{}) (result FuncCallResult, err error) {
 	var lenParam uintptr = uintptr(len(funcParams))
 
 	if p.funcProcs == nil {

@@ -1,4 +1,4 @@
-package dll_caller
+package godll
 
 /*
 #include "MemoryModule/MemoryModule.c"
@@ -30,7 +30,7 @@ type MemDll struct {
 
 var ErrNotFound = errors.New("Not Found dll resource")
 
-func NewMemDll(dllMem []byte) (dll *MemDll, err error) {
+func NewMemDll(dllMem []byte) (dll Dll, err error) {
 	newDll := new(MemDll)
 	if newDll.funcProcs == nil {
 		newDll.funcProcs = make(map[string]uintptr)

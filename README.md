@@ -10,7 +10,7 @@ A windows dll and memory dll call hellper
 package main
 
 import (
-    "github.com/chennqqi/dll_caller"
+    "github.com/chennqqi/godll"
     "fmt"
 )
 
@@ -19,8 +19,8 @@ func main(){
 }
 
 func ShowMessageBox() {
-    var dll *dll_caller.Dll
-    if d, e := dll_caller.NewDll("user32.dll"); e != nil {
+    var dll *godll.Dll
+    if d, e := godll.NewFileDll("user32.dll"); e != nil {
         fmt.Println(e.Error())
         return
     } else {
@@ -47,7 +47,7 @@ You can load dll for file/memory build with [go-bindata](github.com/jteeuwen/go-
 package main
 
 import (
-    "github.com/chennqqi/dll_caller"
+    "github.com/chennqqi/godll"
     "fmt"
 	"io/ioutil"
 )
@@ -57,12 +57,12 @@ func main(){
 }
 
 func ShowMessageBox() {
-    var dll *dll_caller.MemDll
+    var dll *godll.MemDll
 
 	dllbytes, _ := ioutil.ReadFile("user32.dll")
 	//or you can load other 
 	
-    if d, e := dll_caller.NewMemDll(dllbytes); e != nil {
+    if d, e := godll.NewMemDll(dllbytes); e != nil {
         fmt.Println(e.Error())
         return
     } else {
